@@ -18,14 +18,7 @@ package com.netflix.bdp.s3;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.AbortMultipartUploadRequest;
-import com.amazonaws.services.s3.model.CompleteMultipartUploadRequest;
-import com.amazonaws.services.s3.model.DeleteObjectRequest;
-import com.amazonaws.services.s3.model.InitiateMultipartUploadRequest;
-import com.amazonaws.services.s3.model.InitiateMultipartUploadResult;
-import com.amazonaws.services.s3.model.PartETag;
-import com.amazonaws.services.s3.model.UploadPartRequest;
-import com.amazonaws.services.s3.model.UploadPartResult;
+import com.amazonaws.services.s3.model.*;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableSortedMap;
@@ -35,6 +28,7 @@ import com.google.common.io.Closeables;
 import com.netflix.bdp.s3.util.Paths;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.io.EOFException;
@@ -66,12 +60,23 @@ public class S3Util {
     client.abortMultipartUpload(commit.newAbortRequest());
   }
 
-  public static PendingUpload multipartUpload(
-      AmazonS3 client, File localFile, String partition,
-      String bucket, String key, long uploadPartSize) {
+  public static InitiateMultipartUploadRequest createRequest(TaskAttemptContext context,String bucket, String key) {
+    String kms_key_id = context.getConfiguration().get(S3Committer.KMS_KEY_ID, null);
+    if(kms_key_id != null) {
+      ObjectMetadata objectMetadata = new ObjectMetadata();
+      objectMetadata.setSSEAlgorithm(SSEAlgorithm.KMS.getAlgorithm());
+      InitiateMultipartUploadRequest request = new InitiateMultipartUploadRequest(bucket, key).withObjectMetadata(objectMetadata);
+      request.setSSEAwsKeyManagementParams(new SSEAwsKeyManagementParams(kms_key_id));
+      return request;
+    }
+    return new InitiateMultipartUploadRequest(bucket, key);
+  }
 
-    InitiateMultipartUploadResult initiate = client.initiateMultipartUpload(
-        new InitiateMultipartUploadRequest(bucket, key));
+  public static PendingUpload multipartUpload(
+          AmazonS3 client, File localFile, String partition,
+          String bucket, String key, long uploadPartSize, TaskAttemptContext context) {
+
+    InitiateMultipartUploadResult initiate = client.initiateMultipartUpload(createRequest(context,bucket,key));
     String uploadId = initiate.getUploadId();
 
     boolean threw = true;

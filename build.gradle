@@ -15,11 +15,15 @@
  */
 
 buildscript {
-  repositories { jcenter() }
-  dependencies {
-    classpath 'com.github.jengelman.gradle.plugins:shadow:1.2.3'
-  }
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath 'com.github.jengelman.gradle.plugins:shadow:1.2.3'
+        classpath 'com.netflix.nebula:nebula-publishing-plugin:5.1.0'
+    }
 }
+
 
 apply plugin: 'java'
 apply plugin: 'nebula.javadoc-jar'
@@ -28,40 +32,58 @@ apply plugin: 'maven' // make pom files for deployment
 apply plugin: 'com.github.johnrengelman.shadow'
 
 group = "com.netflix.bdp.s3"
-version = '0.5.5'
+version = '1.0.0'
+
+task writePom {
+    doLast {
+        pom {
+            project {
+                inceptionYear '2018'
+                licenses {
+                    license {
+                        name 'The Apache Software License, Version 2.0'
+                        url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                        distribution 'repo'
+                    }
+                }
+            }
+        }.writeTo("$buildDir/pom.xml")
+    }
+}
 
 repositories {
-  mavenCentral()
-  mavenLocal()
+    mavenCentral()
+    mavenLocal()
 }
 
 configurations {
-  shadow
-  compile.extendsFrom provided
-  provided.extendsFrom shadow
+    shadow
+    compile.extendsFrom provided
+    provided.extendsFrom shadow
 }
 
 sourceCompatibility = '1.7'
 targetCompatibility = '1.7'
 
 dependencies {
-  provided 'com.amazonaws:aws-java-sdk-s3:1.11.15'
-  provided 'org.slf4j:slf4j-api:1.7.5'
-  provided 'org.apache.hadoop:hadoop-client:2.7.2'
-  provided 'org.apache.hadoop:hadoop-aws:2.7.2'
-  provided 'com.google.guava:guava:11.0.2'
+    provided 'org.apache.parquet:parquet-hadoop:1.7.0'
+    provided 'com.amazonaws:aws-java-sdk-s3:1.10.77'
+    provided 'org.slf4j:slf4j-api:1.7.5'
+    provided 'org.apache.hadoop:hadoop-client:2.7.3'
+    provided 'org.apache.hadoop:hadoop-aws:2.7.3'
+    provided 'com.google.guava:guava:11.0.2'
 
-  testCompile 'org.apache.hadoop:hadoop-hdfs:2.7.2:tests'
-  testCompile 'org.apache.hadoop:hadoop-common:2.7.2:tests'
-  testCompile 'org.apache.hadoop:hadoop-minicluster:2.7.2'
-  testCompile 'junit:junit:4.12'
-  testCompile 'org.slf4j:slf4j-simple:1.7.5'
-  testCompile 'org.mockito:mockito-all:1.10.19'
+    testCompile 'org.apache.hadoop:hadoop-hdfs:2.7.3:tests'
+    testCompile 'org.apache.hadoop:hadoop-common:2.7.3:tests'
+    testCompile 'org.apache.hadoop:hadoop-minicluster:2.7.3'
+    testCompile 'junit:junit:4.12'
+    testCompile 'org.slf4j:slf4j-simple:1.7.5'
+    testCompile 'org.mockito:mockito-all:1.10.19'
 }
 
 shadowJar {
-  classifier 'shaded'
+    classifier 'shaded'
 
-  configurations = [project.configurations.shadow]
-  from(project.sourceSets.main.output)
+    configurations = [project.configurations.shadow]
+    from(project.sourceSets.main.output)
 }
